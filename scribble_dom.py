@@ -43,6 +43,11 @@ n_max_scribble_files = int(args.n_max_scribble_files)
 n_iterations = min(n_max_scribble_files,curr_iteration)
 iterativescribbledom_iterations = range(curr_iteration-n_iterations+1,curr_iteration+1)
 
+
+def hyp_function(cur_time, total_time):
+    total = (total_time+1)*total_time/2
+    return cur_time/total
+
 with open(args.params) as f:
    params = json.load(f)
 dataset = params['dataset']
@@ -294,9 +299,8 @@ for model in tqdm(models):
 
         for j in range(n_scibble_file):
             for i in range(mask_inds.shape[0]):
-                loss_lr += loss_fn_scr(output[ inds_scr_array[j][i] ], target_scr[j][ inds_scr_array[j][i] ])
+                loss_lr += hyp_function(j,n_scibble_file)*loss_fn_scr(output[ inds_scr_array[j][i] ], target_scr[j][ inds_scr_array[j][i] ])
 
-        loss_lr /= n_scibble_file
 
         loss = alpha * loss_sim + (1 - alpha) * loss_lr
         loss_per_itr.append(loss.data.cpu().numpy())
