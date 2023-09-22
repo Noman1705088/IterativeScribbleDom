@@ -8,7 +8,7 @@ echo "Data convertend in matrix representation"
 python scribble_dom.py --params ${config_file_expert} --curr_iteration ${curr_iteration} --n_max_scribble_files ${n_max_scribble_file}
 echo "========================================"
 echo "Model run complete"
-# python best_model_estimator.py --params ${config_file_expert}
-# echo "========================================"
-# echo "Best model evaluated with goodness score"
-# python show_results.py --params ${config_file_expert}
+python best_model_estimator.py --params ${config_file_expert}
+echo "========================================"
+echo "Best model evaluated with goodness score"
+python show_results.py --params ${config_file_expert}

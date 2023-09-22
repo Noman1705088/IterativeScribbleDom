@@ -56,6 +56,7 @@ samples = params['samples']
 matrix_format_representation_of_data_path = params['matrix_represenation_of_ST_data_folder']
 output_data_path = params['model_output_folder']
 scheme = params['schema']
+n_clusters = params['n_cluster_for_auto_scribble']
 
 use_cuda = torch.cuda.is_available()
 
@@ -108,6 +109,8 @@ for model in tqdm(models):
     pickle_path = f'{local_data_folder_path}/{dataset}/{sample}/Pickles'
 
     scribble_img = f'{local_data_folder_path}/{dataset}/{sample}/Scribble/manual_scribble.npy'
+    iterative_scribble_img = f'{local_data_folder_path}/{dataset}/{sample}/Scribble/manual_scribble/'
+    iterative_scribble_img = iterative_scribble_img + "manual_scribble_{i}.npy"
     input_pcs = f'{npy_path}/mapped_{n_pcs}.npy'
     background = npy_path+'/backgrounds.npy'
     foreground = npy_path+'/foregrounds.npy'
@@ -203,52 +206,55 @@ for model in tqdm(models):
         mask = np.array([lookup[i] for i in mask])
         return mask.reshape(row, col)
 
+    n_scibble_file = len(iterativescribbledom_iterations)
+    inds_scr_array = [None for _ in range(n_scibble_file)]
+    target_scr = [None for _ in range(n_scibble_file)]
+    cnt = 0
 
-    mask = np.load(scribble_img)
-    foreground_val = 1000
-    background_val = 255
-    mask = relabel_mask(mask.copy(), background_val)
-    if len(mask[mask != background_val]) == 0:
-        print('Expecting some scribbles, but no scribbles are found!')
-        last_layer_channel_count = 100 + added_layers
-        nChannel = last_layer_channel_count
-    else:
-        mask_foreground = mask.copy()
-        mask_foreground[foregrounds[:, 0], foregrounds[:, 1]] = foreground_val
-        
-        mx_label_num = mask[mask != background_val].max()
-        mask = mask.reshape(-1)
-        scr_idx = np.where(mask != 255)[0]
-        mask_foreground = mask_foreground.reshape(-1)
+    for scribble_idx in iterativescribbledom_iterations:
+        mask = np.load(iterative_scribble_img.format(i=scribble_idx))
+        foreground_val = 1000
+        background_val = 255
+        mask = relabel_mask(mask.copy(), background_val)
+        if len(mask[mask != background_val]) == 0:
+            print('Expecting some scribbles, but no scribbles are found!')
+            last_layer_channel_count = 100 + added_layers
+            nChannel = last_layer_channel_count
+        else:
+            mask_foreground = mask.copy()
+            mask_foreground[foregrounds[:, 0], foregrounds[:, 1]] = foreground_val
+            
+            mx_label_num = mask[mask != background_val].max()
+            mask = mask.reshape(-1)
+            scr_idx = np.where(mask != 255)[0]
+            mask_foreground = mask_foreground.reshape(-1)
 
-        mask_inds = np.unique(mask)
-        mask_inds = np.delete( mask_inds, np.argwhere(mask_inds==background_val) )
+            mask_inds = np.unique(mask)
+            mask_inds = np.delete( mask_inds, np.argwhere(mask_inds==background_val) )
 
-        for i in range(1, len(mask_inds)):
-            if mask_inds[i] - mask_inds[i-1] != 1:
-                print("Problem in scribble labels. Not increasing by 1.")
+            for i in range(1, len(mask_inds)):
+                if mask_inds[i] - mask_inds[i-1] != 1:
+                    print("Problem in scribble labels. Not increasing by 1.")
 
-        # # Take the non-scribbled foreground into similarity component
-        mask_foreground[scr_idx] = background_val
-        inds_sim = torch.from_numpy( np.where( mask_foreground == foreground_val )[ 0 ] )
+            # # Take the non-scribbled foreground into similarity component
+            mask_foreground[scr_idx] = background_val
 
-        inds_scr = torch.from_numpy( np.where( mask != background_val )[ 0 ] )
-        inds_scr_array = [None for _ in range(mask_inds.shape[0])]
+            inds_scr_array[cnt] = [None for _ in range(mask_inds.shape[0])]
 
-        for i in range(mask_inds.shape[0]):
-            inds_scr_array[i] = torch.from_numpy( np.where( mask == mask_inds[i] )[ 0 ] )
+            for i in range(mask_inds.shape[0]):
+                inds_scr_array[cnt][i] = torch.from_numpy( np.where( mask == mask_inds[i] )[ 0 ] )
 
-        target_scr = torch.from_numpy( mask.astype(np.int64) )
+            target_scr[cnt] = torch.from_numpy( mask.astype(np.int64) )
 
-        if use_cuda:
-            inds_sim = inds_sim.cuda()
-            inds_scr = inds_scr.cuda()
-            target_scr = target_scr.cuda()
+            if use_cuda:
+                target_scr[cnt] = target_scr[cnt].cuda()
+                inds_scr_array[cnt] = [inds_scr_array[cnt][i].cuda() for i in range(mask_inds.shape[0])]
 
 
-        target_scr = Variable( target_scr )
+            target_scr[cnt] = Variable( target_scr[cnt] )
+            cnt += 1
 
-        minLabels = len(mask_inds)
+        minLabels = n_clusters
         nChannel = minLabels
         no_of_scribble_layers = minLabels
         last_layer_channel_count = no_of_scribble_layers
@@ -283,10 +289,14 @@ for model in tqdm(models):
 
         im_target = target.data.cpu().numpy()
 
-        loss_sim = loss_fn_sim(output[ inds_sim ], target[ inds_sim ])
+        loss_sim = loss_fn_sim(output, target)
         loss_lr = 0
-        for i in range(mask_inds.shape[0]):
-            loss_lr += loss_fn_scr(output[ inds_scr_array[i] ], target_scr[ inds_scr_array[i] ])
+
+        for j in range(n_scibble_file):
+            for i in range(mask_inds.shape[0]):
+                loss_lr += loss_fn_scr(output[ inds_scr_array[j][i] ], target_scr[j][ inds_scr_array[j][i] ])
+
+        loss_lr /= n_scibble_file
 
         loss = alpha * loss_sim + (1 - alpha) * loss_lr
         loss_per_itr.append(loss.data.cpu().numpy())
