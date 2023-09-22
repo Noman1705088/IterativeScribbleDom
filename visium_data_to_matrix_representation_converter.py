@@ -14,8 +14,18 @@ from code_utils.scribble_generation.autoscribble_generator import make_backbone
 
 parser = argparse.ArgumentParser(description='ScribbleSeg Preprocessor')
 parser.add_argument('--params', help="The input parameters json file path", required=True)
+parser.add_argument('--curr_iteration', help="Current Iteration of scribble", required=True)
+parser.add_argument('--n_max_scribble_files', help="Current Iteration of scribble", required=True)
 
 args = parser.parse_args()
+
+curr_iteration = int(args.curr_iteration)
+n_max_scribble_files = int(args.n_max_scribble_files)
+
+
+
+n_iterations = min(n_max_scribble_files,curr_iteration)
+iterativescribbledom_iterations = range(curr_iteration-n_iterations+1,curr_iteration+1)
 
 with open(args.params) as f:
    params = json.load(f)
@@ -47,6 +57,11 @@ for sample in samples:
     scr_csv_path = f'./{preprocessed_dataset_folder}/{dataset}/{sample}/manual_scribble.csv'
     scr_file_path = f'./{matrix_format_representation_of_data_path}/{dataset}/{sample}/Scribble/manual_scribble.npy'
 
+    iterative_scr_csv_path = f'./{preprocessed_dataset_folder}/{dataset}/{sample}/manual_scribble/'
+    iterative_scr_csv_path = iterative_scr_csv_path + "manual_scribble_{i}.csv"
+    iterative_scr_file_path = f'./{matrix_format_representation_of_data_path}/{dataset}/{sample}/Scribble/manual_scribble/'
+    iterative_scr_file_path = iterative_scr_file_path + "manual_scribble_{i}.npy"
+
     if scheme == 'mclust':
         make_backbone(preprocessed_data_folder=preprocessed_dataset_folder,sample=sample,dataset=dataset)
         scr_csv_path = f'./{preprocessed_dataset_folder}/{dataset}/{sample}/mclust_backbone.csv'
@@ -58,6 +73,7 @@ for sample in samples:
 
     make_directory_if_not_exist(f'{matrix_format_representation_of_data_path}/{dataset}/{sample}/Npys')
     make_directory_if_not_exist(f'{matrix_format_representation_of_data_path}/{dataset}/{sample}/Scribble')
+    make_directory_if_not_exist(f'{matrix_format_representation_of_data_path}/{dataset}/{sample}/Scribble/manual_scribble')
 
     # %%
     def make_grid_idx(adata):
@@ -214,6 +230,13 @@ for sample in samples:
 
     np.save(scr_file_path, grid_scr)
     np.save(mapped_pc_file_path, grid_pc)
+
+    for scribble_idx in iterativescribbledom_iterations:
+        df_barcode_scr = pd.read_csv(iterative_scr_csv_path.format(i=scribble_idx), index_col=0).fillna(255).astype('int')
+        grid_scr = make_grid_scr(grid_pixel_coor, grid_barcode, df_barcode_scr)
+
+        np.save(iterative_scr_file_path.format(i=scribble_idx), grid_scr)
+        np.save(mapped_pc_file_path, grid_pc)       
 
     # %%
     def find_backgrounds(grid_pixel_coor, grid_barcode):

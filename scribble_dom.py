@@ -30,8 +30,18 @@ import argparse
 
 parser = argparse.ArgumentParser(description='ScribbleSeg expert annotation pipeline')
 parser.add_argument('--params', help="The input parameters json file path", required=True)
+parser.add_argument('--curr_iteration', help="Current Iteration of scribble", required=True)
+parser.add_argument('--n_max_scribble_files', help="Current Iteration of scribble", required=True)
 
 args = parser.parse_args()
+
+curr_iteration = int(args.curr_iteration)
+n_max_scribble_files = int(args.n_max_scribble_files)
+
+
+
+n_iterations = min(n_max_scribble_files,curr_iteration)
+iterativescribbledom_iterations = range(curr_iteration-n_iterations+1,curr_iteration+1)
 
 with open(args.params) as f:
    params = json.load(f)
