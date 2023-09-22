@@ -64,6 +64,7 @@ def get_Human_DLPFC_filenames(dataset, sample, fname_out_root):
     fname["spatial"] = f"{preprocessed_dataset_folder}/{dataset}/{sample}/Coordinates/coordinates.csv"
     fname["labels"] = np.sort(glob.glob(fname_out_root + "final_barcode_labels.csv"))
     fname["meta"] = np.sort(glob.glob(fname_out_root + "meta_data.csv"))
+    fname["model"] = np.sort(glob.glob(fname_out_root + "Model/model.pt"))
     return fname
 
 df_results = {}
@@ -137,12 +138,15 @@ for sample in samples:
 
     src_final_meta = fname['meta'][idx3]
     src_final_label = fname['labels'][idx3]
+    src_final_model = fname['model'][idx3]
 
     final_output_dir = f"{final_output_folder}/{dataset}/{sample}/{scheme}"
     make_directory_if_not_exist(final_output_dir)
 
     dest_final_meta = f"{final_output_dir}/meta_data.csv"
     dest_final_label = f"{final_output_dir}/final_barcode_labels.csv"
+    dest_final_model = f"{final_output_dir}/final_model.pt"
 
     shutil.copyfile(src_final_meta,dest_final_meta)
     shutil.copyfile(src_final_label,dest_final_label)
+    shutil.copyfile(src_final_model,dest_final_model)

@@ -62,6 +62,7 @@ matrix_format_representation_of_data_path = params['matrix_represenation_of_ST_d
 output_data_path = params['model_output_folder']
 scheme = params['schema']
 n_clusters = params['n_cluster_for_auto_scribble']
+final_output_folder = params['final_output_folder']
 
 use_cuda = torch.cuda.is_available()
 
@@ -123,6 +124,7 @@ for model in tqdm(models):
 
     output_folder_path = f'./{output_data_path}/{dataset}/{sample}'
     leaf_output_folder_path = f'{output_folder_path}/{scheme}/Hyper_{alpha}'
+    leaf_output_folder_path_model = f"{leaf_output_folder_path}/Model"
 
     # %%
     pixel_barcode = np.load(pixel_barcode_file_path)
@@ -132,6 +134,7 @@ for model in tqdm(models):
 
     # %%
     make_directory_if_not_exist(leaf_output_folder_path)
+    make_directory_if_not_exist(leaf_output_folder_path_model)
 
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -206,7 +209,8 @@ for model in tqdm(models):
         row, col = mask.shape
         mask = mask.reshape(-1)
         values = np.unique(mask[mask != background_val])
-        lookup = {k: v for v, k in enumerate(dict.fromkeys(values))}
+        # lookup = {k: v for v, k in enumerate(dict.fromkeys(values))}
+        lookup = {k: k-1 for v, k in enumerate(dict.fromkeys(values))}
         lookup[background_val] = background_val
         mask = np.array([lookup[i] for i in mask])
         return mask.reshape(row, col)
@@ -214,6 +218,8 @@ for model in tqdm(models):
     n_scibble_file = len(iterativescribbledom_iterations)
     inds_scr_array = [None for _ in range(n_scibble_file)]
     target_scr = [None for _ in range(n_scibble_file)]
+    inds_sim = [None for _ in range(n_scibble_file)]
+    mask_inds = [None for _ in range(n_scibble_file)]
     cnt = 0
 
     for scribble_idx in iterativescribbledom_iterations:
@@ -234,26 +240,31 @@ for model in tqdm(models):
             scr_idx = np.where(mask != 255)[0]
             mask_foreground = mask_foreground.reshape(-1)
 
-            mask_inds = np.unique(mask)
-            mask_inds = np.delete( mask_inds, np.argwhere(mask_inds==background_val) )
+            mask_inds[cnt] = np.unique(mask)
+            mask_inds[cnt] = np.delete( mask_inds[cnt], np.argwhere(mask_inds[cnt]==background_val) )
 
-            for i in range(1, len(mask_inds)):
-                if mask_inds[i] - mask_inds[i-1] != 1:
-                    print("Problem in scribble labels. Not increasing by 1.")
+            # for i in range(1, len(mask_inds)):
+            #     if mask_inds[i] - mask_inds[i-1] != 1:
+            #         print("Problem in scribble labels. Not increasing by 1.")
 
             # # Take the non-scribbled foreground into similarity component
+            print(mask_inds[cnt])
             mask_foreground[scr_idx] = background_val
+            inds_sim[cnt] = torch.from_numpy( np.where( mask_foreground == foreground_val )[ 0 ] )
 
-            inds_scr_array[cnt] = [None for _ in range(mask_inds.shape[0])]
+            inds_scr_array[cnt] = [None for _ in range(mask_inds[cnt].shape[0])]
 
-            for i in range(mask_inds.shape[0]):
-                inds_scr_array[cnt][i] = torch.from_numpy( np.where( mask == mask_inds[i] )[ 0 ] )
+            for i in range(mask_inds[cnt].shape[0]):
+                inds_scr_array[cnt][i] = torch.from_numpy( np.where( mask == mask_inds[cnt][i] )[ 0 ] )
 
             target_scr[cnt] = torch.from_numpy( mask.astype(np.int64) )
+            print(mask.shape)
+            print(target_scr[cnt].shape)
 
             if use_cuda:
+                inds_sim[cnt] = inds_sim[cnt].cuda()
                 target_scr[cnt] = target_scr[cnt].cuda()
-                inds_scr_array[cnt] = [inds_scr_array[cnt][i].cuda() for i in range(mask_inds.shape[0])]
+                inds_scr_array[cnt] = [inds_scr_array[cnt][i].cuda() for i in range(mask_inds[cnt].shape[0])]
 
 
             target_scr[cnt] = Variable( target_scr[cnt] )
@@ -266,6 +277,11 @@ for model in tqdm(models):
 
 
     model = MyNet( data.size(1) )
+
+    final_output_model = f"{final_output_folder}/{dataset}/{sample}/{scheme}/final_model.pt"
+    if os.path.exists(final_output_model):
+        print("Loaded...")
+        model.load_state_dict(torch.load(final_output_model))
     if use_cuda:
         model.cuda()
     model.train()
@@ -294,11 +310,12 @@ for model in tqdm(models):
 
         im_target = target.data.cpu().numpy()
 
-        loss_sim = loss_fn_sim(output, target)
+        loss_sim = 0
         loss_lr = 0
 
         for j in range(n_scibble_file):
-            for i in range(mask_inds.shape[0]):
+            loss_sim += loss_fn_sim(output[ inds_sim[j] ], target[ inds_sim[j] ])/n_scibble_file
+            for i in range(mask_inds[j].shape[0]):
                 loss_lr += hyp_function(j,n_scibble_file)*loss_fn_scr(output[ inds_scr_array[j][i] ], target_scr[j][ inds_scr_array[j][i] ])
 
 
@@ -308,6 +325,8 @@ for model in tqdm(models):
         loss.backward()
         optimizer.step()
 
+    model_path = os.path.join(leaf_output_folder_path_model,'model.pt')
+    torch.save(model.state_dict(), model_path)
     output = model( data )[ 0 ]
     output = output.permute( 1, 2, 0 ).contiguous().view( -1, nChannel )
     ignore, target = torch.max( output, 1 )

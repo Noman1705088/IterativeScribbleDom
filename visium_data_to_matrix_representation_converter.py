@@ -224,12 +224,6 @@ for sample in samples:
     grid_pixel_coor = make_grid_pixel_coor(grid_idx, parity)
     grid_pc = make_grid_pc(grid_pixel_coor, grid_barcode, map_barcode_pc)
 
-    # %%
-    df_barcode_scr = pd.read_csv(scr_csv_path, index_col=0).fillna(255).astype('int')
-    grid_scr = make_grid_scr(grid_pixel_coor, grid_barcode, df_barcode_scr)
-
-    np.save(scr_file_path, grid_scr)
-    np.save(mapped_pc_file_path, grid_pc)
 
     for scribble_idx in iterativescribbledom_iterations:
         df_barcode_scr = pd.read_csv(iterative_scr_csv_path.format(i=scribble_idx), index_col=0).fillna(255).astype('int')
