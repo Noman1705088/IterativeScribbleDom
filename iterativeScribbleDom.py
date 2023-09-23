@@ -3,7 +3,7 @@ import subprocess
 
 
 n_iterations = 10
-n_max_scribble_files = 3
+n_max_scribble_files = 10
 
 def check_if_file_exists(filename):
     if os.path.isfile(filename):
@@ -36,3 +36,7 @@ for i in range(1, 1 + n_iterations):
     print("-------------Processing--------------")
     os.system("chmod +x run_hbc_b1s1.sh")
     os.system(f"./run_hbc_b1s1.sh {i} {n_max_scribble_files}")
+
+    # Rename the final_out.png to final_out_{i}.png
+    filePath = "final_outputs/cancers/hbc_b1s1/expert/final_out.png"
+    os.system(f"mv {filePath} {filePath[:-4]}_{i}.png")
