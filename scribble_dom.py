@@ -248,7 +248,6 @@ for model in tqdm(models):
             #         print("Problem in scribble labels. Not increasing by 1.")
 
             # # Take the non-scribbled foreground into similarity component
-            print(mask_inds[cnt])
             mask_foreground[scr_idx] = background_val
             inds_sim[cnt] = torch.from_numpy( np.where( mask_foreground == foreground_val )[ 0 ] )
 
@@ -258,8 +257,6 @@ for model in tqdm(models):
                 inds_scr_array[cnt][i] = torch.from_numpy( np.where( mask == mask_inds[cnt][i] )[ 0 ] )
 
             target_scr[cnt] = torch.from_numpy( mask.astype(np.int64) )
-            print(mask.shape)
-            print(target_scr[cnt].shape)
 
             if use_cuda:
                 inds_sim[cnt] = inds_sim[cnt].cuda()
@@ -312,11 +309,10 @@ for model in tqdm(models):
 
         loss_sim = 0
         loss_lr = 0
-
-        for j in range(n_scibble_file):
-            loss_sim += loss_fn_sim(output[ inds_sim[j] ], target[ inds_sim[j] ])/n_scibble_file
-            for i in range(mask_inds[j].shape[0]):
-                loss_lr += hyp_function(j,n_scibble_file)*loss_fn_scr(output[ inds_scr_array[j][i] ], target_scr[j][ inds_scr_array[j][i] ])
+        for scribble_idx in range(n_scibble_file):
+            loss_sim += loss_fn_sim(output[ inds_sim[scribble_idx] ], target[ inds_sim[scribble_idx] ]) / n_scibble_file
+            for i in range(mask_inds[scribble_idx].shape[0]):
+                loss_lr += loss_fn_scr(output[ inds_scr_array[scribble_idx][i] ], target_scr[scribble_idx][ inds_scr_array[scribble_idx][i] ])*hyp_function(scribble_idx+1,n_scibble_file)
 
 
         loss = alpha * loss_sim + (1 - alpha) * loss_lr
