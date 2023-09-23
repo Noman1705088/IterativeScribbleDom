@@ -310,7 +310,7 @@ for model in tqdm(models):
         loss_sim = 0
         loss_lr = 0
         for scribble_idx in range(n_scibble_file):
-            loss_sim += loss_fn_sim(output[ inds_sim[scribble_idx] ], target[ inds_sim[scribble_idx] ])
+            loss_sim += loss_fn_sim(output[ inds_sim[scribble_idx] ], target[ inds_sim[scribble_idx] ]) / n_scibble_file
             for i in range(mask_inds[scribble_idx].shape[0]):
                 loss_lr += loss_fn_scr(output[ inds_scr_array[scribble_idx][i] ], target_scr[scribble_idx][ inds_scr_array[scribble_idx][i] ])*hyp_function(scribble_idx+1,n_scibble_file)
 
