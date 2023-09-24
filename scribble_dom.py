@@ -210,7 +210,10 @@ for model in tqdm(models):
         mask = mask.reshape(-1)
         values = np.unique(mask[mask != background_val])
         # lookup = {k: v for v, k in enumerate(dict.fromkeys(values))}
-        lookup = {k: k-1 for v, k in enumerate(dict.fromkeys(values))}
+        if dataset == "Human_DLPFC":
+            lookup = {k: k for v, k in enumerate(dict.fromkeys(values))}
+        else:
+            lookup = {k: k-1 for v, k in enumerate(dict.fromkeys(values))}
         lookup[background_val] = background_val
         mask = np.array([lookup[i] for i in mask])
         return mask.reshape(row, col)
