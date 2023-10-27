@@ -4,6 +4,7 @@ import subprocess
 
 n_iterations = 10
 n_max_scribble_files = 10
+sample = "151672"
 
 def check_if_file_exists(filename):
     if os.path.isfile(filename):
@@ -19,14 +20,14 @@ def get_thefile_from_prompt():
             print("please enter y or n")
 
         if is_done == 'y':
-            filename = f'preprocessed_data/Human_DLPFC/151673/manual_scribble/manual_scribble_{i}.csv'
+            filename = f'preprocessed_data/Human_DLPFC/{sample}/manual_scribble/manual_scribble_{i}.csv'
             if not check_if_file_exists(filename):
                 print(f"file {filename} does not exist")
                 is_done = "rand"
     return is_done
 
 for i in range(1, 1 + n_iterations):
-    print(f"\n\nAdd 'manual_scrible_{i}.csv' in directory 'preprocessed_data/Human_DLPFC/151673/manual_scribble'")
+    print(f"\n\nAdd 'manual_scrible_{i}.csv' in directory 'preprocessed_data/Human_DLPFC/{sample}/manual_scribble'")
     is_done = get_thefile_from_prompt()
 
     if is_done == 'n':
@@ -38,5 +39,5 @@ for i in range(1, 1 + n_iterations):
     os.system(f"./run_human_dlpfc.sh {i} {n_max_scribble_files}")
 
     # Rename the final_out.png to final_out_{i}.png
-    filePath = "final_outputs/Human_DLPFC/151673/expert/final_out.png"
+    filePath = f"final_outputs/Human_DLPFC/{sample}/expert/final_out.png"
     os.system(f"mv {filePath} {filePath[:-4]}_{i}.png")
