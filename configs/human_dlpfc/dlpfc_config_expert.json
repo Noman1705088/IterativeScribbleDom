@@ -4,12 +4,12 @@
     "model_output_folder" : "model_outputs",
     "final_output_folder" : "final_outputs",
 
-    "raw_gene_expression_directory" : "nil",
+    "space_ranger_output_directory" : "raw_gene_x",
     "dataset": "Human_DLPFC",
-    "samples": ["151673"],
+    "samples": ["151672"],
     "technology": "visium",
     "n_pcs": 15,
-    "n_cluster_for_auto_scribble": 7,
+    "n_cluster_for_auto_scribble": 5,
     "schema": "expert",
     
     "max_iter": 300,
